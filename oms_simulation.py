@@ -214,4 +214,97 @@ def oms_ui():
         refresh_trade_blotter()
         st.session_state.refresh_blotter = False
         
+    # --- Show Current Portfolio
+    with sqlite3.connect(DB_PATH) as conn:
+        df = pd.read_sql("SELECT * FROM trades", conn)
+
+    if df.empty:
+        st.info("No trade records found to build portfolio.")
+    else:
+        # Compute cumulative Buy and Sell quantities and values per symbol
+        df['trade_value'] = df['quantity'] * df['price']
         
+        # Separate buy and sell trades
+        buys = df[df['side'].str.lower() == 'buy']
+        sells = df[df['side'].str.lower() == 'sell']
+
+        # Aggregate buy trades
+        buys_agg = buys.groupby('symbol').agg(
+            buy_qty=pd.NamedAgg(column='quantity', aggfunc='sum'),
+            buy_value=pd.NamedAgg(column='trade_value', aggfunc='sum')
+        )
+
+        # Aggregate sell trades
+        sells_agg = sells.groupby('symbol').agg(
+            sell_qty=pd.NamedAgg(column='quantity', aggfunc='sum'),
+            sell_value=pd.NamedAgg(column='trade_value', aggfunc='sum')
+        )
+
+        # Merge buy and sell aggregates on symbol
+        portfolio = buys_agg.merge(sells_agg, left_index=True, right_index=True, how='outer').fillna(0)
+
+        # Calculate net quantities and values
+        portfolio['net_qty'] = portfolio['buy_qty'] - portfolio['sell_qty']
+        portfolio['net_value'] = portfolio['buy_value'] - portfolio['sell_value']
+
+        # Format columns with currency
+        portfolio['buy_value'] = portfolio['buy_value'].apply(lambda x: f"${x:,.2f}")
+        portfolio['sell_value'] = portfolio['sell_value'].apply(lambda x: f"${x:,.2f}")
+        portfolio['net_value'] = portfolio['net_value'].apply(lambda x: f"${x:,.2f}")
+
+        # Reorder columns
+        portfolio = portfolio.reset_index()
+        portfolio = portfolio[['symbol', 'buy_qty', 'buy_value', 'sell_qty', 'sell_value', 'net_qty', 'net_value']]
+
+        # Rename columns for display
+        portfolio.columns = [
+            "Symbol", "Total Buy Qty", "Total Buy Value",
+            "Total Sell Qty", "Total Sell Value",
+            "Net Qty", "Net Value"
+        ]
+
+        # Select only the desired columns to display
+        # display_portfolio = portfolio[[
+            # "Symbol", "Total Buy Qty", "Total Sell Qty", "Net Qty", "Net Value"
+        # ]]
+        display_portfolio = portfolio[
+            portfolio["Net Qty"] != 0
+        ][[
+            "Symbol", "Total Buy Qty", "Total Sell Qty", "Net Qty", "Net Value"
+        ]]
+
+        st.markdown("### 📈 Current Portfolio Summary")
+        st.dataframe(display_portfolio, use_container_width=True)
+
+        # --- Show Current Portfolio
+        st.markdown("### 💼 Portfolio Snapshot")
+
+        cols = st.columns(3)  # 3 columns per row
+        col_idx = 0
+
+        for idx, row in display_portfolio.iterrows():
+            symbol = row["Symbol"]
+            net_qty = int(row["Net Qty"])
+
+            # Parse and format Net Value
+            net_value_str = row["Net Value"]
+            if isinstance(net_value_str, str):
+                net_value = float(net_value_str.replace("$", "").replace(",", ""))
+            else:
+                net_value = net_value_str
+
+            net_value_color = "lime" if net_value >= 0 else "red"
+
+            with cols[col_idx]:
+                st.markdown(f"""
+                <div style="background-color: #111827; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                    <h4 style="color: white; margin-bottom: 6px;">{symbol}</h4>
+                    <p style="color: white; margin: 0;">📦 Net Qty: <strong>{net_qty}</strong></p>
+                    <p style="color: {net_value_color}; font-weight: bold; margin: 0;">💰 Net Value: ${net_value:,.2f}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            col_idx += 1
+            if col_idx >= 3:
+                col_idx = 0
+                cols = st.columns(3)  # start new row with 3 columns

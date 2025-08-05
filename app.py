@@ -13,8 +13,8 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-st.set_page_config(page_title="Neovest OMS & FIX Protocol Simulator", layout="wide")
+st.set_page_config(page_title="TradePilot OMS & FIX Protocol Simulator", layout="wide")
 
-st.title("📊 Neovest - OMS & FIX Protocol Simulator")
+st.title("📊 TradePilot: OMS & FIX Protocol Simulator")
 
 oms_ui()
