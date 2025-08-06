@@ -38,3 +38,17 @@ In this app, each order generates a simplified FIX message (Version 4.2 – New 
 
 ## 🚀 Visit the App Online
 👉 [Open App on Streamlit](https://oms-fix-simulator.streamlit.app/)
+
+## 🖼️ Screenshots
+
+**System Design Diagram**  
+![System Design Diagram](./assets/tradePilot_SysDes.png)
+
+**Order Entry Form**  
+![Order Entry Form](./assets/OP1.png)
+
+**Trade Blotter View**  
+![Trade Blotter View](./assets/OP2.png)
+
+**Portfolio Summary Dashboard**  
+![Portfolio Summary Dashboard](./assets/OP3.png)
